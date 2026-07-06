@@ -6,6 +6,7 @@ import {
   Building2,
   Users,
   MessageSquare,
+  MessageCircle,
   FileText,
   Settings,
   LogOut,
@@ -61,6 +62,7 @@ const Sidebar = ({ isMobileOpen, onClose }) => {
     },
     { to: '/users', icon: <Users size={18} />, label: 'Users & Admins' },
     { to: '/leads', icon: <MessageSquare size={18} />, label: 'Enquiries / Leads' },
+    { to: '/chats', icon: <MessageCircle size={18} />, label: 'Communications' },
     {
       label: 'System & Reports',
       isHeader: true
