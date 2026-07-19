@@ -14,7 +14,8 @@ import {
   CheckCircle,
   Clock,
   XCircle,
-  Star
+  Star,
+  Video
 } from 'lucide-react';
 
 const Sidebar = ({ isMobileOpen, onClose }) => {
@@ -63,6 +64,7 @@ const Sidebar = ({ isMobileOpen, onClose }) => {
     { to: '/users', icon: <Users size={18} />, label: 'Users & Admins' },
     { to: '/leads', icon: <MessageSquare size={18} />, label: 'Enquiries / Leads' },
     { to: '/chats', icon: <MessageCircle size={18} />, label: 'Communications' },
+    { to: '/reels', icon: <Video size={18} />, label: 'Reels Moderation' },
     {
       label: 'System & Reports',
       isHeader: true

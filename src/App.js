@@ -12,6 +12,7 @@ import Leads from './views/pages/Leads';
 import AuditLogs from './views/pages/AuditLogs';
 import Settings from './views/pages/Settings';
 import Chats from './views/pages/Chats';
+import Reels from './views/pages/Reels';
 
 // Protected Route wrapper component
 const ProtectedRoute = ({ children }) => {
@@ -117,6 +118,14 @@ function App() {
             <ProtectedRoute>
               <DashboardLayout>
                 <Chats />
+              </DashboardLayout>
+            </ProtectedRoute>
+          } />
+
+          <Route path="/reels" element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <Reels />
               </DashboardLayout>
             </ProtectedRoute>
           } />

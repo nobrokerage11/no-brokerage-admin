@@ -12,6 +12,10 @@ const Leads = () => {
   const {
     loading,
     filteredLeads,
+    leadsTab,
+    setLeadsTab,
+    filteredServiceLeads,
+    handleUpdateServiceLeadStatus,
     search,
     setSearch,
     statusFilter,
@@ -31,11 +35,14 @@ const Leads = () => {
   const [activeMessageModal, setActiveMessageModal] = useState(null);
 
   const getStatusBadge = (status) => {
-    switch (status) {
+    const s = (status || '').toLowerCase();
+    switch (s) {
       case 'accepted':
         return <span className="badge badge-approved">Accepted</span>;
       case 'pending':
         return <span className="badge badge-pending">Pending</span>;
+      case 'new':
+        return <span className="badge badge-pending">New</span>;
       case 'rejected':
         return <span className="badge badge-rejected">Rejected</span>;
       default:
@@ -48,20 +55,56 @@ const Leads = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <h1 className="page-title">Enquiries & Leads</h1>
-          <p className="page-subtitle">Monitor inquiries made by buyers to property sellers.</p>
+          <p className="page-subtitle">Monitor inquiries made by buyers to property sellers and custom service requests.</p>
         </div>
         <button onClick={handleExportCSV} className="btn btn-secondary" style={{ gap: '8px' }}>
           <Download size={16} /> Export to CSV
         </button>
       </div>
 
-      {/* 1. Filters Dashboard */}
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: '20px', borderBottom: '1px solid var(--border-primary)', marginBottom: '20px' }}>
+        <button 
+          onClick={() => { setLeadsTab('enquiries'); setSearch(''); setStatusFilter('all'); }}
+          style={{
+            padding: '10px 16px',
+            background: 'none',
+            border: 'none',
+            fontSize: '14px',
+            fontWeight: 600,
+            color: leadsTab === 'enquiries' ? 'var(--primary)' : 'var(--text-secondary)',
+            borderBottom: leadsTab === 'enquiries' ? '2px solid var(--primary)' : '2px solid transparent',
+            cursor: 'pointer',
+            transition: 'all var(--transition-fast)'
+          }}
+        >
+          Property Enquiries
+        </button>
+        <button 
+          onClick={() => { setLeadsTab('serviceLeads'); setSearch(''); setStatusFilter('all'); }}
+          style={{
+            padding: '10px 16px',
+            background: 'none',
+            border: 'none',
+            fontSize: '14px',
+            fontWeight: 600,
+            color: leadsTab === 'serviceLeads' ? 'var(--primary)' : 'var(--text-secondary)',
+            borderBottom: leadsTab === 'serviceLeads' ? '2px solid var(--primary)' : '2px solid transparent',
+            cursor: 'pointer',
+            transition: 'all var(--transition-fast)'
+          }}
+        >
+          Service Leads
+        </button>
+      </div>
+
+      {/* Filters Dashboard */}
       <div className="filters-bar">
         <div className="search-input-wrapper" style={{ flex: 2 }}>
           <Search size={16} className="search-icon-fixed" />
           <input 
             type="text" 
-            placeholder="Search leads by message, buyer, seller or property..." 
+            placeholder={leadsTab === 'enquiries' ? "Search leads by message, buyer, seller or property..." : "Search service leads by name, mobile, city, type or requirement..."} 
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="search-input"
@@ -77,9 +120,19 @@ const Leads = () => {
             onChange={(e) => setStatusFilter(e.target.value)}
           >
             <option value="all">All Statuses</option>
-            <option value="pending">Pending</option>
-            <option value="accepted">Accepted</option>
-            <option value="rejected">Rejected</option>
+            {leadsTab === 'enquiries' ? (
+              <>
+                <option value="pending">Pending</option>
+                <option value="accepted">Accepted</option>
+                <option value="rejected">Rejected</option>
+              </>
+            ) : (
+              <>
+                <option value="new">New</option>
+                <option value="accepted">Accepted</option>
+                <option value="rejected">Rejected</option>
+              </>
+            )}
           </select>
         </div>
 
@@ -99,10 +152,10 @@ const Leads = () => {
         </div>
       </div>
 
-      {/* 2. Main Leads Table */}
+      {/* Main Leads Table */}
       {loading ? (
         <div className="skeleton" style={{ height: '360px', borderRadius: 'var(--radius-md)' }} />
-      ) : (
+      ) : leadsTab === 'enquiries' ? (
         <div className="table-container">
           <table className="premium-table">
             <thead>
@@ -215,7 +268,108 @@ const Leads = () => {
             </tbody>
           </table>
         </div>
+      ) : (
+        <div className="table-container">
+          <table className="premium-table">
+            <thead>
+              <tr>
+                <th>Customer Name</th>
+                <th>Mobile</th>
+                <th>City</th>
+                <th style={{ width: '30%' }}>Requirement</th>
+                <th>Type</th>
+                <th>Source</th>
+                <th>Status</th>
+                <th>Date</th>
+                <th style={{ textAlign: 'right' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredServiceLeads.length === 0 ? (
+                <tr>
+                  <td colSpan="9" style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>
+                    No service leads match the specified filter.
+                  </td>
+                </tr>
+              ) : (
+                filteredServiceLeads.map((lead) => (
+                  <tr key={lead.id}>
+                    <td><span style={{ fontWeight: 600 }}>{lead.name}</span></td>
+                    <td>{lead.mobile}</td>
+                    <td>{lead.city}</td>
+                    <td>
+                      <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.4', fontStyle: 'italic' }}>
+                        {lead.requirement && lead.requirement.length > 80 ? (
+                          <>
+                            "{lead.requirement.substring(0, 80)}..."
+                            <button
+                              type="button"
+                              onClick={() => setActiveMessageModal({ buyer: { full_name: lead.name }, seller: { full_name: lead.source }, message: lead.requirement })}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: 'var(--primary)',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                paddingLeft: '4px',
+                                textDecoration: 'underline',
+                                fontSize: '11px'
+                              }}
+                            >
+                              view full
+                            </button>
+                          </>
+                        ) : (
+                          `"${lead.requirement || 'No details'}"`
+                        )}
+                      </p>
+                    </td>
+                    <td>
+                      <span style={{ 
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        backgroundColor: 'rgba(99, 102, 241, 0.12)',
+                        color: 'var(--primary)',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        {lead.type}
+                      </span>
+                    </td>
+                    <td>{lead.source}</td>
+                    <td>{getStatusBadge(lead.status)}</td>
+                    <td>
+                      <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                        {new Date(lead.created_at).toLocaleDateString()}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <select
+                        value={lead.status || 'New'}
+                        onChange={(e) => handleUpdateServiceLeadStatus(lead.id, e.target.value)}
+                        style={{
+                          padding: '4px 8px',
+                          border: '1px solid var(--border-primary)',
+                          borderRadius: '4px',
+                          fontSize: '11px',
+                          background: 'var(--bg-secondary)',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <option value="New">New</option>
+                        <option value="Accepted">Accepted</option>
+                        <option value="Rejected">Rejected</option>
+                      </select>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       )}
+
       <ConfirmationModal
         isOpen={confirmOpen}
         onClose={() => setConfirmOpen(false)}
@@ -232,7 +386,7 @@ const Leads = () => {
         <div className="modal-backdrop">
           <div className="modal-content" style={{ maxWidth: '450px' }}>
             <div className="modal-header">
-              <h3 style={{ fontSize: '15px', fontWeight: 600 }}>Buyer Inquiry Message</h3>
+              <h3 style={{ fontSize: '15px', fontWeight: 600 }}>Message Detail</h3>
               <button 
                 type="button"
                 onClick={() => setActiveMessageModal(null)}
@@ -244,16 +398,16 @@ const Leads = () => {
             <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-primary)', paddingBottom: '10px' }}>
                 <div>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Buyer</span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Customer</span>
                   <p style={{ fontSize: '13px', fontWeight: 600, marginTop: '2px' }}>{activeMessageModal.buyer?.full_name || 'Anonymous'}</p>
                 </div>
                 <div>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Seller</span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Source / Context</span>
                   <p style={{ fontSize: '13px', fontWeight: 600, marginTop: '2px' }}>{activeMessageModal.seller?.full_name || 'N/A'}</p>
                 </div>
               </div>
               <div>
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Message Body</span>
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Requirement Detail</span>
                 <div style={{
                   padding: '12px',
                   backgroundColor: 'var(--bg-secondary)',

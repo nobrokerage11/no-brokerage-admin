@@ -18,5 +18,19 @@ export const leadService = {
       .from('enquiries')
       .update({ status: nextStatus })
       .eq('id', leadId);
+  },
+
+  async getServiceLeads() {
+    return await supabase
+      .from('leads')
+      .select('*')
+      .order('created_at', { ascending: false });
+  },
+
+  async updateServiceLeadStatus(leadId, nextStatus) {
+    return await supabase
+      .from('leads')
+      .update({ status: nextStatus })
+      .eq('id', leadId);
   }
 };

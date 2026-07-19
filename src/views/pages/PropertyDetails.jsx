@@ -200,6 +200,28 @@ const PropertyDetails = () => {
             )}
           </div>
 
+          {/* Walkthrough Video Reel */}
+          {property.property_reels && property.property_reels.length > 0 && (
+            <div className="card" style={{ padding: '16px' }}>
+              <h3 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '14px', borderBottom: '1px solid var(--border-primary)', paddingBottom: '10px' }}>
+                Walkthrough Video Reel
+              </h3>
+              <div style={{ position: 'relative', width: '100%', maxWidth: '360px', margin: '0 auto', borderRadius: 'var(--radius-md)', overflow: 'hidden', boxShadow: 'var(--shadow-md)' }}>
+                <video 
+                  src={property.property_reels[0].video_url} 
+                  poster={property.property_reels[0].thumbnail_url}
+                  controls 
+                  style={{ width: '100%', display: 'block', maxHeight: '500px', backgroundColor: '#000' }}
+                />
+                {property.property_reels[0].caption && (
+                  <div style={{ padding: '12px', backgroundColor: 'var(--bg-secondary)', fontSize: '13px', borderTop: '1px solid var(--border-primary)', fontStyle: 'italic' }}>
+                    "{property.property_reels[0].caption}"
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Description & Specifications */}
           <div className="card">
             <h3 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '14px', borderBottom: '1px solid var(--border-primary)', paddingBottom: '10px' }}>

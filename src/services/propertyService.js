@@ -13,7 +13,7 @@ export const propertyService = {
   async getPropertyById(id) {
     return await supabase
       .from('properties')
-      .select('*, owner:users!properties_owner_id_fkey(*)')
+      .select('*, owner:users!properties_owner_id_fkey(*), property_reels(*)')
       .eq('id', id)
       .maybeSingle();
   },
