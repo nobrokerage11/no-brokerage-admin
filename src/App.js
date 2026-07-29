@@ -13,6 +13,8 @@ import AuditLogs from './views/pages/AuditLogs';
 import Settings from './views/pages/Settings';
 import Chats from './views/pages/Chats';
 import Reels from './views/pages/Reels';
+import Careers from './views/pages/Careers';
+import Blogs from './views/pages/Blogs';
 
 // Protected Route wrapper component
 const ProtectedRoute = ({ children }) => {
@@ -126,6 +128,22 @@ function App() {
             <ProtectedRoute>
               <DashboardLayout>
                 <Reels />
+              </DashboardLayout>
+            </ProtectedRoute>
+          } />
+
+          <Route path="/careers" element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <Careers />
+              </DashboardLayout>
+            </ProtectedRoute>
+          } />
+
+          <Route path="/blogs" element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <Blogs />
               </DashboardLayout>
             </ProtectedRoute>
           } />

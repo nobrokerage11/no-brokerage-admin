@@ -15,7 +15,9 @@ import {
   Clock,
   XCircle,
   Star,
-  Video
+  Video,
+  Briefcase,
+  BookOpen
 } from 'lucide-react';
 
 const Sidebar = ({ isMobileOpen, onClose }) => {
@@ -65,6 +67,8 @@ const Sidebar = ({ isMobileOpen, onClose }) => {
     { to: '/leads', icon: <MessageSquare size={18} />, label: 'Enquiries / Leads' },
     { to: '/chats', icon: <MessageCircle size={18} />, label: 'Communications' },
     { to: '/reels', icon: <Video size={18} />, label: 'Reels Moderation' },
+    { to: '/careers', icon: <Briefcase size={18} />, label: 'Careers & Jobs' },
+    { to: '/blogs', icon: <BookOpen size={18} />, label: 'Blog Articles' },
     {
       label: 'System & Reports',
       isHeader: true
