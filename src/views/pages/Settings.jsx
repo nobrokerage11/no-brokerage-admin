@@ -10,17 +10,35 @@ import {
   Lock,
   Save,
   Key,
-  BarChart3,
-  MapPin,
   Plus,
   Trash2,
-  Tag,
   FileText,
   Building,
   Compass,
-  Image,
-  Layers
+  Phone,
+  Globe
 } from 'lucide-react';
+
+const DEFAULT_CONTACT_INFO = {
+  support_phone: '9214901596',
+  support_phone_display: '+91 92149 01596',
+  website_url: 'https://nobrokerages.online',
+  support_email: 'team@nobrokerages.online'
+};
+
+const formatPhoneDisplay = (rawPhone) => {
+  const digits = String(rawPhone || '').replace(/\D/g, '');
+  const local = digits.startsWith('91') && digits.length === 12 ? digits.slice(2) : digits;
+  if (local.length === 10) return `+91 ${local.slice(0, 5)} ${local.slice(5)}`;
+  if (local) return `+91 ${local}`;
+  return DEFAULT_CONTACT_INFO.support_phone_display;
+};
+
+const normalizeWhatsAppPhone = (rawPhone) => {
+  const digits = String(rawPhone || '').replace(/\D/g, '');
+  if (digits.startsWith('91') && digits.length === 12) return digits.slice(2);
+  return digits;
+};
 
 const defaultPropertyTypes = [
   'Apartment',
@@ -68,6 +86,10 @@ const Settings = () => {
   const [typesLoading, setTypesLoading] = useState(false);
   const [newTypeInput, setNewTypeInput] = useState('');
 
+  // Contact info (phone + website) used on the public website
+  const [contactInfo, setContactInfo] = useState(DEFAULT_CONTACT_INFO);
+  const [contactLoading, setContactLoading] = useState(false);
+
   // Legal & Content Documents
   const [aboutUsText, setAboutUsText] = useState('');
   const [termsText, setTermsText] = useState('');
@@ -101,6 +123,11 @@ const Settings = () => {
 
       const { data: typeData } = await systemSettingsService.getSetting('property_types');
       if (typeData?.value && Array.isArray(typeData.value)) setPropertyTypes(typeData.value);
+
+      const { data: contactData } = await systemSettingsService.getSetting('contact_info');
+      if (contactData?.value && typeof contactData.value === 'object') {
+        setContactInfo({ ...DEFAULT_CONTACT_INFO, ...contactData.value });
+      }
 
       const { data: aboutData } = await systemSettingsService.getSetting('about_us');
       if (aboutData?.value) setAboutUsText(aboutData.value);
@@ -204,6 +231,39 @@ const Settings = () => {
     }
   };
 
+  const handleSaveContactInfo = async (e) => {
+    e.preventDefault();
+    const phone = normalizeWhatsAppPhone(contactInfo.support_phone);
+    if (!phone || phone.length < 10) {
+      alert('Please enter a valid 10-digit mobile number.');
+      return;
+    }
+    const websiteUrl = (contactInfo.website_url || '').trim().replace(/\/$/, '');
+    if (!websiteUrl || !/^https?:\/\//i.test(websiteUrl)) {
+      alert('Please enter a valid website URL starting with http:// or https://');
+      return;
+    }
+
+    setContactLoading(true);
+    try {
+      const payload = {
+        ...contactInfo,
+        support_phone: phone,
+        support_phone_display: formatPhoneDisplay(phone),
+        website_url: websiteUrl,
+        support_email: (contactInfo.support_email || DEFAULT_CONTACT_INFO.support_email).trim()
+      };
+      const { error } = await systemSettingsService.updateSetting('contact_info', payload);
+      if (error) throw error;
+      setContactInfo(payload);
+      alert('Contact number & website updated. Changes are live on the website.');
+    } catch (err) {
+      alert(err.message || 'Error saving contact info');
+    } finally {
+      setContactLoading(false);
+    }
+  };
+
   const handleSaveLegalSettings = async (e) => {
     e.preventDefault();
     setLegalLoading(true);
@@ -222,12 +282,80 @@ const Settings = () => {
   return (
     <div className="page-body" style={{ maxWidth: '1100px', margin: '0 auto', padding: '24px' }}>
       <h1 className="page-title">Console & Platform Settings</h1>
-      <p className="page-subtitle">Manage platform metrics, property categories, trending localities, new projects, legal documents, and security.</p>
+      <p className="page-subtitle">Manage contact number, website URL, trending localities, new projects, legal documents, and security.</p>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '24px' }}>
         
-        {/* Left Column: Trending Neighborhoods, New Projects, Legal */}
+        {/* Left Column: Contact, Trending Neighborhoods, New Projects, Legal */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+
+          {/* Contact Number & Website */}
+          <div className="card">
+            <h3 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)' }}>
+              <Phone size={18} /> Website Contact & WhatsApp
+            </h3>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '16px', lineHeight: 1.5 }}>
+              Change the query / WhatsApp number and website URL shown across the public website. No code change needed.
+            </p>
+            <form onSubmit={handleSaveContactInfo} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                  Mobile / WhatsApp Number
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={contactInfo.support_phone}
+                  onChange={(e) => setContactInfo({
+                    ...contactInfo,
+                    support_phone: e.target.value.replace(/[^\d]/g, '').slice(0, 10)
+                  })}
+                  placeholder="e.g. 9214901596"
+                  style={{ width: '100%', padding: '8px 12px' }}
+                  required
+                />
+                <small style={{ display: 'block', marginTop: '6px', fontSize: '11px', color: 'var(--text-muted)' }}>
+                  Preview: {formatPhoneDisplay(contactInfo.support_phone)} · WhatsApp: wa.me/{normalizeWhatsAppPhone(contactInfo.support_phone) || '…'}
+                </small>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><Globe size={12} /> Website URL</span>
+                </label>
+                <input
+                  type="url"
+                  value={contactInfo.website_url}
+                  onChange={(e) => setContactInfo({ ...contactInfo, website_url: e.target.value })}
+                  placeholder="https://nobrokerages.online"
+                  style={{ width: '100%', padding: '8px 12px' }}
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                  Support Email
+                </label>
+                <input
+                  type="email"
+                  value={contactInfo.support_email}
+                  onChange={(e) => setContactInfo({ ...contactInfo, support_email: e.target.value })}
+                  placeholder="team@nobrokerages.online"
+                  style={{ width: '100%', padding: '8px 12px' }}
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={contactLoading}
+                className="btn btn-primary btn-sm"
+                style={{ alignSelf: 'flex-start', gap: '6px' }}
+              >
+                <Save size={14} /> {contactLoading ? 'Saving...' : 'Save Contact & Website'}
+              </button>
+            </form>
+          </div>
           
           {/* Trending Neighborhoods Manager */}
           <div className="card">
