@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { usePropertyDetailsController } from '../../controllers/usePropertyDetailsController';
+import { getReviewStatus } from '../../services/propertyService';
 import ConfirmationModal from '../components/ConfirmationModal';
 import {
   ChevronLeft,
@@ -95,7 +96,7 @@ const PropertyDetails = () => {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
             <h1 className="page-title">{property.title}</h1>
-            {getStatusBadge(property.status)}
+            {getStatusBadge(getReviewStatus(property))}
             {property.is_featured && (
               <span className="badge" style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '3px' }}>
                 <Star size={11} fill="var(--primary)" /> Featured
@@ -129,7 +130,7 @@ const PropertyDetails = () => {
             </button>
           )}
 
-          {property.status !== 'rejected' && (
+          {getReviewStatus(property) !== 'rejected' && (
             <button 
               onClick={() => setShowRejectModal(true)}
               disabled={actionLoading}
@@ -295,7 +296,7 @@ const PropertyDetails = () => {
         {/* Right Side: Seller details, stats & timeline logs */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* Rejection Details alert box */}
-          {property.status === 'rejected' && property.rejection_reason && (
+          {getReviewStatus(property) === 'rejected' && (
             <div style={{
               backgroundColor: 'var(--danger-light)',
               border: '1px solid var(--danger)',

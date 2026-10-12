@@ -43,7 +43,7 @@ export const useDashboardController = () => {
 
       const totalProperties = propList.length;
       const approvedProperties = propList.filter(p => p.status === 'approved').length;
-      const pendingPropertiesCount = propList.filter(p => p.status === 'pending').length;
+      const pendingPropertiesCount = propList.filter(p => p.status === 'pending' && !p.rejection_reason).length;
       const rejectedProperties = propList.filter(p => p.status === 'pending' && p.rejection_reason).length;
       const soldProperties = propList.filter(p => p.status === 'sold').length;
       const activeProperties = propList.filter(p => p.status === 'approved' || p.status === 'active').length;
@@ -80,7 +80,12 @@ export const useDashboardController = () => {
       });
 
       // Recent users & Pending properties
-      setPendingProperties(propList.filter(p => p.status === 'pending').slice(0, 5));
+      setPendingProperties(
+        propList
+          .filter(p => p.status === 'pending' && !p.rejection_reason)
+          .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+          .slice(0, 5)
+      );
       setRecentLogs(logList);
 
       // Recharts calculations

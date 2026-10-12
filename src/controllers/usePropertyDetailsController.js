@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { propertyService } from '../services/propertyService';
+import { propertyService, getReviewStatus } from '../services/propertyService';
 import { notificationService } from '../services/notificationService';
 import { useAuth } from './auth';
 
@@ -72,24 +72,21 @@ export const usePropertyDetailsController = () => {
     setConfirmMessage(`Are you sure you want to approve "${property?.title}"? This listing will immediately go live on the public marketplace.`);
     setConfirmType('success');
     setPendingAction(() => async () => {
-      const { error } = await propertyService.updatePropertyStatus(id, 'approved', null, null);
+      const { error } = await propertyService.updatePropertyStatus(id, 'approved', null, null, property.status);
       if (error) throw error;
 
       await propertyService.insertStatusHistory(
         id,
         user?.id,
         adminProfile?.full_name || 'Admin',
-        property.status,
+        getReviewStatus(property),
         'approved',
         null,
         'Approved listing'
       );
 
-      await notificationService.sendNotification(
-        property.owner_id,
-        'Listing Approved! 🎉',
-        `Congratulations! Your property "${property.title}" has been approved and is now live on the marketplace.`
-      );
+      // The seller's "approved" notification is created by the database
+      // trigger on this status change; sending another here duplicated it.
 
       await logAction(
         user?.id,
@@ -107,9 +104,10 @@ export const usePropertyDetailsController = () => {
       alert('Please select a rejection reason');
       return;
     }
+    if (actionLoading) return;
     setActionLoading(true);
     try {
-      const { error } = await propertyService.updatePropertyStatus(id, 'pending', rejectReason, rejectRemarks);
+      const { error } = await propertyService.updatePropertyStatus(id, 'pending', rejectReason, rejectRemarks, property.status);
 
       if (error) throw error;
 
@@ -118,7 +116,7 @@ export const usePropertyDetailsController = () => {
         id,
         user?.id,
         adminProfile?.full_name || 'Admin',
-        property.status,
+        getReviewStatus(property),
         'rejected',
         rejectReason,
         rejectRemarks
@@ -128,7 +126,7 @@ export const usePropertyDetailsController = () => {
       await notificationService.sendNotification(
         property.owner_id,
         'Listing Review Required ⚠️',
-        `Your property listing "${property.title}" requires revisions. Reason: ${rejectReason}. Remarks: ${rejectRemarks}`
+        `Your property listing "${property.title}" requires revisions. Reason: ${rejectReason}.${rejectRemarks.trim() ? ` Remarks: ${rejectRemarks.trim()}` : ''}`
       );
 
       // Audit log
@@ -156,7 +154,7 @@ export const usePropertyDetailsController = () => {
     setConfirmMessage(`Suspend the property listing "${property?.title}"? Suspended listings are hidden from public view.`);
     setConfirmType('warning');
     setPendingAction(() => async () => {
-      const { error } = await propertyService.updatePropertyStatus(id, 'pending');
+      const { error } = await propertyService.updatePropertyStatus(id, 'pending', null, null, property.status);
       if (error) throw error;
 
       await propertyService.insertStatusHistory(
@@ -231,7 +229,7 @@ export const usePropertyDetailsController = () => {
   };
 
   const executeConfirmAction = async () => {
-    if (!pendingAction) return;
+    if (!pendingAction || actionLoading) return;
     setActionLoading(true);
     try {
       await pendingAction();

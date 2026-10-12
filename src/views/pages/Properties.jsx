@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { usePropertiesController } from '../../controllers/usePropertiesController';
+import { getReviewStatus } from '../../services/propertyService';
 import {
   Search,
   Eye,
@@ -256,7 +257,7 @@ const Properties = () => {
                     </td>
                     <td>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
-                        {getStatusBadge(prop.status)}
+                        {getStatusBadge(getReviewStatus(prop))}
                         {prop.is_featured && (
                           <span className="badge" style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary)', fontSize: '9px', padding: '1px 6px' }}>
                             Featured

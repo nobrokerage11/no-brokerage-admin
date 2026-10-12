@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { propertyService } from '../services/propertyService';
+import { propertyService, getReviewStatus } from '../services/propertyService';
 
 export const usePropertiesController = () => {
   const [searchParams] = useSearchParams();
@@ -90,7 +90,7 @@ export const usePropertiesController = () => {
 
     // Status Filter
     if (statusFilter !== 'all') {
-      result = result.filter(p => p.status === statusFilter);
+      result = result.filter(p => getReviewStatus(p) === statusFilter);
     }
 
     // Property Type Filter
@@ -168,7 +168,7 @@ export const usePropertiesController = () => {
       p.price,
       p.city || 'N/A',
       `"${(p.location || '').replace(/"/g, '""')}"`,
-      p.status || 'pending',
+      getReviewStatus(p),
       p.is_featured ? 'Yes' : 'No',
       p.views || 0,
       p.favorites_count || 0,

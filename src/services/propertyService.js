@@ -1,5 +1,16 @@
 import { supabase } from './supabase';
 
+/**
+ * Status as the review workflow sees it. The `property_status` enum has no
+ * "rejected" value, so a rejected listing is stored as `pending` with a
+ * rejection reason.
+ */
+export const getReviewStatus = (property) => {
+  if (!property) return 'pending';
+  if (property.status === 'pending' && property.rejection_reason) return 'rejected';
+  return property.status || 'pending';
+};
+
 export const propertyService = {
   async getProperties() {
     return await supabase
@@ -18,21 +29,43 @@ export const propertyService = {
       .maybeSingle();
   },
 
-  async updatePropertyStatus(id, newStatus, rejectionReason = null, rejectionRemarks = null) {
-    const updateData = { status: newStatus };
-    if (rejectionReason !== null) {
-      updateData.rejection_reason = rejectionReason;
-    }
-    if (rejectionRemarks !== null) {
-      updateData.rejection_remarks = rejectionRemarks;
-    }
+  /**
+   * Moves a listing to `newStatus`.
+   *
+   * The database has no "rejected" status: a rejected listing is `pending`
+   * with a rejection reason. So the reason and remarks are always written,
+   * and cleared for an approval or a suspension, otherwise a stale reason
+   * would keep marking the listing as rejected.
+   *
+   * `expectedStatus` guards against two admins acting on the same listing:
+   * the update only applies if the listing is still in the status the admin
+   * was looking at.
+   */
+  async updatePropertyStatus(id, newStatus, rejectionReason = null, rejectionRemarks = null, expectedStatus = null) {
+    const updateData = {
+      status: newStatus,
+      rejection_reason: rejectionReason || null,
+      rejection_remarks: rejectionRemarks || null
+    };
     if (newStatus === 'approved') {
       updateData.approved_at = new Date().toISOString();
     }
-    return await supabase
+    let query = supabase
       .from('properties')
       .update(updateData)
       .eq('id', id);
+    if (expectedStatus) {
+      query = query.eq('status', expectedStatus);
+    }
+    const { data, error } = await query.select('id');
+    if (error) return { data, error };
+    if (!data || data.length === 0) {
+      return {
+        data,
+        error: new Error('This listing was changed by someone else or you no longer have access. Reload the page and try again.')
+      };
+    }
+    return { data, error: null };
   },
 
   async insertStatusHistory(propertyId, adminId, adminName, oldStatus, newStatus, reason = null, remarks = null) {
