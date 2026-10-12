@@ -15,7 +15,21 @@ export const useChatsController = () => {
   const fetchChats = async () => {
     setLoading(true);
     try {
-      const { data, error } = await chatService.getChats();
+      const [{ data: chatRows, error }, { data: reports }] = await Promise.all([
+        chatService.getChats(),
+        chatService.getChatReports()
+      ]);
+      // Reported conversations that were opened from a lead.
+      const knownIds = new Set((chatRows || []).map((chat) => chat.id));
+      const enquiryChatIds = [...new Set((reports || []).map((report) => report.chat_id))]
+        .filter((chatId) => !knownIds.has(chatId));
+      const { data: enquiryChats } = await chatService.getEnquiryChats(enquiryChatIds);
+
+      // Attach each chat's report reasons so the reviewer sees why it is here.
+      const data = [...(chatRows || []), ...(enquiryChats || [])].map((chat) => ({
+        ...chat,
+        reports: (reports || []).filter((report) => report.chat_id === chat.id)
+      }));
       if (error) throw error;
       setChats(data || []);
       setFilteredChats(data || []);

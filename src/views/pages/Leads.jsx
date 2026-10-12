@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLeadsController } from '../../controllers/useLeadsController';
+import { ENQUIRY_STATUSES, SERVICE_LEAD_STATUSES, getLeadStatusLabel, isStaleLead } from '../../services/leadService';
 import ConfirmationModal from '../components/ConfirmationModal';
 import {
   Search,
@@ -29,25 +30,43 @@ const Leads = () => {
     confirmType,
     handleUpdateStatus,
     executeConfirmAction,
-    handleExportCSV
+    handleExportCSV,
+    admins,
+    assignFilter,
+    setAssignFilter,
+    handleAssignServiceLead,
+    handleMessageCustomer,
+    currentAdminId
   } = useLeadsController();
 
   const [activeMessageModal, setActiveMessageModal] = useState(null);
 
   const getStatusBadge = (status) => {
-    const s = (status || '').toLowerCase();
-    switch (s) {
-      case 'accepted':
-        return <span className="badge badge-approved">Accepted</span>;
-      case 'pending':
-        return <span className="badge badge-pending">Pending</span>;
-      case 'new':
-        return <span className="badge badge-pending">New</span>;
-      case 'rejected':
-        return <span className="badge badge-rejected">Rejected</span>;
-      default:
-        return <span className="badge badge-disabled">{status || 'unknown'}</span>;
-    }
+    const label = getLeadStatusLabel(status);
+    const className = {
+      'New': 'badge-pending',
+      'Contacted': 'badge-pending',
+      'Visit scheduled': 'badge-pending',
+      'Closed': 'badge-approved',
+      'Not interested': 'badge-disabled'
+    }[label] || 'badge-disabled';
+    return <span className={`badge ${className}`}>{label || 'unknown'}</span>;
+  };
+
+  const followUpBadge = (lead) =>
+    isStaleLead(lead) ? (
+      <span className="badge badge-rejected" style={{ marginLeft: '6px' }} title="New for more than a day">Follow up</span>
+    ) : null;
+
+  const messageButtonStyle = {
+    marginLeft: '6px',
+    padding: '4px 8px',
+    border: '1px solid var(--border-primary)',
+    borderRadius: '4px',
+    fontSize: '11px',
+    background: 'var(--bg-secondary)',
+    color: 'var(--text-primary)',
+    cursor: 'pointer'
   };
 
   return (
@@ -121,20 +140,33 @@ const Leads = () => {
           >
             <option value="all">All Statuses</option>
             {leadsTab === 'enquiries' ? (
-              <>
-                <option value="pending">Pending</option>
-                <option value="accepted">Accepted</option>
-                <option value="rejected">Rejected</option>
-              </>
+              ENQUIRY_STATUSES.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))
             ) : (
-              <>
-                <option value="new">New</option>
-                <option value="accepted">Accepted</option>
-                <option value="rejected">Rejected</option>
-              </>
+              SERVICE_LEAD_STATUSES.map((status) => (
+                <option key={status} value={status}>{status}</option>
+              ))
             )}
           </select>
         </div>
+
+        {/* Assignment and follow-up, for service leads */}
+        {leadsTab !== 'enquiries' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Show:</span>
+            <select
+              className="filter-select"
+              value={assignFilter}
+              onChange={(e) => setAssignFilter(e.target.value)}
+            >
+              <option value="all">All leads</option>
+              <option value="mine">Assigned to me</option>
+              <option value="unassigned">Unassigned</option>
+              <option value="followup">Needs follow-up</option>
+            </select>
+          </div>
+        )}
 
         {/* Date Filter */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -238,13 +270,13 @@ const Leads = () => {
                         )}
                       </p>
                     </td>
-                    <td>{getStatusBadge(lead.status)}</td>
+                    <td>{getStatusBadge(lead.status)}{followUpBadge(lead)}</td>
                     <td>
                       <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                         {new Date(lead.created_at).toLocaleDateString()}
                       </span>
                     </td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                       <select
                         value={lead.status || 'pending'}
                         onChange={(e) => handleUpdateStatus(lead.id, e.target.value)}
@@ -257,10 +289,21 @@ const Leads = () => {
                           cursor: 'pointer'
                         }}
                       >
-                        <option value="pending">Pending</option>
-                        <option value="accepted">Accepted</option>
-                        <option value="rejected">Rejected</option>
+                        {/* A status written by an older app build stays selectable. */}
+                        {!ENQUIRY_STATUSES.some((option) => option.value === (lead.status || 'pending')) && (
+                          <option value={lead.status}>{getLeadStatusLabel(lead.status)}</option>
+                        )}
+                        {ENQUIRY_STATUSES.map((option) => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
                       </select>
+                      <button
+                        type="button"
+                        style={messageButtonStyle}
+                        onClick={() => handleMessageCustomer(lead.buyer_id, lead.property?.title || 'your enquiry')}
+                      >
+                        Message
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -273,13 +316,11 @@ const Leads = () => {
           <table className="premium-table">
             <thead>
               <tr>
-                <th>Customer Name</th>
-                <th>Mobile</th>
-                <th>City</th>
-                <th style={{ width: '30%' }}>Requirement</th>
-                <th>Type</th>
-                <th>Source</th>
+                <th>Customer</th>
+                <th style={{ width: '24%' }}>Requirement</th>
+                <th>Type / Source</th>
                 <th>Status</th>
+                <th>Assigned to</th>
                 <th>Date</th>
                 <th style={{ textAlign: 'right' }}>Actions</th>
               </tr>
@@ -287,16 +328,20 @@ const Leads = () => {
             <tbody>
               {filteredServiceLeads.length === 0 ? (
                 <tr>
-                  <td colSpan="9" style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>
+                  <td colSpan="7" style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>
                     No service leads match the specified filter.
                   </td>
                 </tr>
               ) : (
                 filteredServiceLeads.map((lead) => (
                   <tr key={lead.id}>
-                    <td><span style={{ fontWeight: 600 }}>{lead.name}</span></td>
-                    <td>{lead.mobile}</td>
-                    <td>{lead.city}</td>
+                    <td>
+                      <span style={{ fontWeight: 600 }}>{lead.name}</span>
+                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>{lead.mobile}</div>
+                      {lead.city && lead.city !== 'N/A' && (
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{lead.city}</div>
+                      )}
+                    </td>
                     <td>
                       <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.4', fontStyle: 'italic' }}>
                         {lead.requirement && lead.requirement.length > 80 ? (
@@ -336,15 +381,37 @@ const Leads = () => {
                       }}>
                         {lead.type}
                       </span>
+                      <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px' }}>{lead.source}</div>
                     </td>
-                    <td>{lead.source}</td>
-                    <td>{getStatusBadge(lead.status)}</td>
+                    <td>{getStatusBadge(lead.status)}{followUpBadge(lead)}</td>
+                    <td>
+                      <select
+                        value={lead.assigned_to || ''}
+                        onChange={(e) => handleAssignServiceLead(lead.id, e.target.value)}
+                        aria-label="Assigned to"
+                        style={{
+                          padding: '4px 8px',
+                          border: '1px solid var(--border-primary)',
+                          borderRadius: '4px',
+                          fontSize: '11px',
+                          background: 'var(--bg-secondary)',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <option value="">Unassigned</option>
+                        {admins.map((admin) => (
+                          <option key={admin.id} value={admin.id}>
+                            {admin.id === currentAdminId ? `${admin.full_name} (me)` : admin.full_name}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
                     <td>
                       <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                         {new Date(lead.created_at).toLocaleDateString()}
                       </span>
                     </td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                       <select
                         value={lead.status || 'New'}
                         onChange={(e) => handleUpdateServiceLeadStatus(lead.id, e.target.value)}
@@ -357,10 +424,22 @@ const Leads = () => {
                           cursor: 'pointer'
                         }}
                       >
-                        <option value="New">New</option>
-                        <option value="Accepted">Accepted</option>
-                        <option value="Rejected">Rejected</option>
+                        {!SERVICE_LEAD_STATUSES.includes(lead.status || 'New') && (
+                          <option value={lead.status}>{getLeadStatusLabel(lead.status)}</option>
+                        )}
+                        {SERVICE_LEAD_STATUSES.map((status) => (
+                          <option key={status} value={status}>{status}</option>
+                        ))}
                       </select>
+                      {lead.user_id && (
+                        <button
+                          type="button"
+                          style={messageButtonStyle}
+                          onClick={() => handleMessageCustomer(lead.user_id, lead.type || 'your request')}
+                        >
+                          Message
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))

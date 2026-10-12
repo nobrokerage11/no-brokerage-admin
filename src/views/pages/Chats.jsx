@@ -164,8 +164,8 @@ const Chats = () => {
             ) : filteredChats.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
                 <AlertCircle size={28} style={{ margin: '0 auto 12px auto', display: 'block' }} />
-                <p style={{ fontSize: '13px', fontWeight: 500 }}>No conversations found</p>
-                <p style={{ fontSize: '11px', marginTop: '2px' }}>Try searching for another query</p>
+                <p style={{ fontSize: '13px', fontWeight: 500 }}>No reported conversations</p>
+                <p style={{ fontSize: '11px', marginTop: '2px' }}>Chats between owners and buyers are private. A conversation appears here only after one of them reports it.</p>
               </div>
             ) : (
               filteredChats.map((chat) => {
@@ -270,6 +270,11 @@ const Chats = () => {
                   <div style={{ minWidth: 0 }}>
                     <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {selectedChat.property?.title || 'Property Listing'}
+                      {(selectedChat.reports || []).map((report) => (
+                        <span key={report.id} className="badge badge-rejected" style={{ marginLeft: '8px' }} title={new Date(report.created_at).toLocaleString()}>
+                          Reported: {report.reason}
+                        </span>
+                      ))}
                     </h3>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '2px', fontSize: '11px', color: 'var(--text-secondary)' }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>

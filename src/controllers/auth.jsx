@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { authService } from '../services/authService';
 import { adminService } from '../services/adminService';
 import { auditService } from '../services/auditService';
@@ -63,28 +63,46 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // The admin whose profile has already been checked in this tab.
+  const verifiedUserId = useRef(null);
+
   useEffect(() => {
     // 1. Get initial session
     authService.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
         setUser(session.user);
-        await fetchAdminProfile(session.user);
+        const profile = await fetchAdminProfile(session.user);
+        if (profile) verifiedUserId.current = session.user.id;
       }
       setLoading(false);
     });
 
     // 2. Listen for auth changes
     const { data: { subscription } } = authService.onAuthStateChange(async (event, session) => {
-      setLoading(true);
-      if (session?.user) {
-        setUser(session.user);
-        const profile = await fetchAdminProfile(session.user);
-        if (profile && event === 'SIGNED_IN') {
-          await logAction(session.user.id, profile.full_name, 'Login', 'Admin Portal', `Login successful`);
-        }
-      } else {
+      if (!session?.user) {
+        verifiedUserId.current = null;
         setUser(null);
         setAdminProfile(null);
+        setLoading(false);
+        return;
+      }
+
+      // Supabase repeats SIGNED_IN every time the tab regains focus and on
+      // each token refresh. For the admin already verified here that is not
+      // a login: do not blank the page, re-check the profile or log it.
+      if (verifiedUserId.current === session.user.id) {
+        setUser(session.user);
+        return;
+      }
+
+      setLoading(true);
+      setUser(session.user);
+      const profile = await fetchAdminProfile(session.user);
+      if (profile) {
+        verifiedUserId.current = session.user.id;
+        if (event === 'SIGNED_IN') {
+          await logAction(session.user.id, profile.full_name, 'Login', 'Admin Portal', `Login successful`);
+        }
       }
       setLoading(false);
     });

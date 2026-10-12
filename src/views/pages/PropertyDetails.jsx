@@ -331,7 +331,7 @@ const PropertyDetails = () => {
                 <div>
                   <h4 style={{ fontSize: '14px', fontWeight: 600 }}>{property.owner.full_name}</h4>
                   <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                    Profile Type: {property.owner.user_type}
+                    Profile Type: {property.owner.is_seller ? 'seller' : 'buyer'}
                   </p>
                 </div>
               </div>

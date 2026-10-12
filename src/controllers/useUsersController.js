@@ -212,7 +212,7 @@ export const useUsersController = () => {
       return list;
     } else {
       let list = users.filter(u =>
-        activeTab === 'buyers' ? u.user_type === 'buyer' : u.user_type === 'seller'
+        activeTab === 'buyers' ? u.is_seller !== true : u.is_seller === true
       );
       if (q) {
         list = list.filter(u =>

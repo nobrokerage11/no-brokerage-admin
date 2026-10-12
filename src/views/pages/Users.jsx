@@ -83,7 +83,7 @@ const Users = () => {
             marginBottom: '-1px'
           }}
         >
-          Buyers ({users.filter(u => u.user_type === 'buyer').length})
+          Buyers ({users.filter(u => u.is_seller !== true).length})
         </button>
         <button 
           onClick={() => { setActiveTab('owners'); setSelectedUser(null); }}
@@ -96,7 +96,7 @@ const Users = () => {
             marginBottom: '-1px'
           }}
         >
-          Property Owners ({users.filter(u => u.user_type === 'seller').length})
+          Property Owners ({users.filter(u => u.is_seller === true).length})
         </button>
         <button 
           onClick={() => { setActiveTab('admins'); setSelectedUser(null); }}

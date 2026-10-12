@@ -35,3 +35,12 @@ create policy "Admins can insert status history"
 -- `properties` is not in the realtime publication, so no client can be told
 -- about an approval as it happens; they refresh on focus/resume instead.
 -- alter publication supabase_realtime add table public.properties;
+
+-- 5. Leads: finish closing the privacy hole -----------------------------------
+-- Run this ONLY after the updated website is deployed. The website build that
+-- was live on 2026-10-12 reads back each lead it inserts; until it is replaced,
+-- a lead stays readable by anyone for 60 seconds after it is created.
+-- drop policy if exists "Leads are visible to admins and their own customer" on public.leads;
+-- create policy "Leads are visible to admins and their own customer"
+--   on public.leads for select
+--   using (public.is_admin() or (user_id is not null and user_id = auth.uid()));

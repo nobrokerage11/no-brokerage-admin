@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { leadService } from '../services/leadService';
+import { leadService, getLeadStatusLabel, isStaleLead } from '../services/leadService';
+import { notificationService } from '../services/notificationService';
 import { useAuth } from './auth';
 
 export const useLeadsController = () => {
@@ -17,6 +18,12 @@ export const useLeadsController = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('all'); // all, today, week, month
+  const [assignFilter, setAssignFilter] = useState('all'); // all, mine, unassigned, followup
+  const [admins, setAdmins] = useState([]);
+
+  useEffect(() => {
+    leadService.getAdmins().then(({ data }) => setAdmins(data || []));
+  }, []);
 
   const fetchLeads = async () => {
     setLoading(true);
@@ -60,7 +67,7 @@ export const useLeadsController = () => {
 
     // Status filter
     if (statusFilter !== 'all') {
-      result = result.filter(l => l.status === statusFilter);
+      result = result.filter(l => getLeadStatusLabel(l.status) === getLeadStatusLabel(statusFilter));
     }
 
     // Date filter
@@ -101,7 +108,16 @@ export const useLeadsController = () => {
 
     // Status filter
     if (statusFilter !== 'all') {
-      result = result.filter(l => (l.status || '').toLowerCase() === statusFilter.toLowerCase());
+      result = result.filter(l => getLeadStatusLabel(l.status) === getLeadStatusLabel(statusFilter));
+    }
+
+    // Assignment / follow-up filter
+    if (assignFilter === 'mine') {
+      result = result.filter(l => l.assigned_to === user?.id);
+    } else if (assignFilter === 'unassigned') {
+      result = result.filter(l => !l.assigned_to);
+    } else if (assignFilter === 'followup') {
+      result = result.filter(isStaleLead);
     }
 
     // Date filter
@@ -121,7 +137,7 @@ export const useLeadsController = () => {
     }
 
     setFilteredServiceLeads(result);
-  }, [search, statusFilter, dateFilter, serviceLeads]);
+  }, [search, statusFilter, dateFilter, assignFilter, serviceLeads, user]);
 
   // Custom confirmation modal states
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -133,7 +149,7 @@ export const useLeadsController = () => {
   const handleUpdateStatus = (leadId, nextStatus) => {
     setConfirmTitle('Update Lead Status');
     setConfirmMessage(`Are you sure you want to update the status of this enquiry to "${nextStatus}"?`);
-    setConfirmType(nextStatus === 'rejected' ? 'danger' : nextStatus === 'accepted' ? 'success' : 'warning');
+    setConfirmType('warning');
     setPendingAction(() => async () => {
       const { error } = await leadService.updateLeadStatus(leadId, nextStatus);
       if (error) throw error;
@@ -152,7 +168,7 @@ export const useLeadsController = () => {
   const handleUpdateServiceLeadStatus = (leadId, nextStatus) => {
     setConfirmTitle('Update Service Lead Status');
     setConfirmMessage(`Are you sure you want to update the status of this service lead to "${nextStatus}"?`);
-    setConfirmType(nextStatus === 'rejected' ? 'danger' : nextStatus === 'accepted' ? 'success' : 'warning');
+    setConfirmType('warning');
     setPendingAction(() => async () => {
       const { error } = await leadService.updateServiceLeadStatus(leadId, nextStatus);
       if (error) throw error;
@@ -166,6 +182,48 @@ export const useLeadsController = () => {
       );
     });
     setConfirmOpen(true);
+  };
+
+  // Assigning needs no confirmation: it is easy to change back.
+  const handleAssignServiceLead = async (leadId, adminId) => {
+    const { error } = await leadService.assignServiceLead(leadId, adminId);
+    if (error) {
+      alert(error.message || 'Could not assign the lead.');
+      return;
+    }
+    setServiceLeads(prev => prev.map(l => (l.id === leadId ? { ...l, assigned_to: adminId || null } : l)));
+    const adminName = admins.find(a => a.id === adminId)?.full_name;
+    await logAction(
+      user?.id,
+      adminProfile?.full_name || 'System',
+      'Assign Lead',
+      leadId,
+      adminId ? `Assigned service lead to ${adminName || 'an admin'}` : 'Unassigned service lead'
+    );
+  };
+
+  // Sends the customer an in-app notification about their lead.
+  const handleMessageCustomer = async (userId, subject) => {
+    if (!userId) return;
+    const body = window.prompt(`Message to the customer about: ${subject}`);
+    if (!body || !body.trim()) return;
+    const { error } = await notificationService.sendNotification(
+      userId,
+      'Message from NoBrokerage',
+      body.trim()
+    );
+    if (error) {
+      alert(error.message || 'The message could not be sent.');
+      return;
+    }
+    await logAction(
+      user?.id,
+      adminProfile?.full_name || 'System',
+      'Message Customer',
+      userId,
+      `Sent a message about: ${subject}`
+    );
+    alert('Message sent.');
   };
 
   const executeConfirmAction = async () => {
@@ -269,6 +327,12 @@ export const useLeadsController = () => {
     handleUpdateStatus,
     executeConfirmAction,
     handleExportCSV,
-    fetchLeads
+    fetchLeads,
+    admins,
+    assignFilter,
+    setAssignFilter,
+    handleAssignServiceLead,
+    handleMessageCustomer,
+    currentAdminId: user?.id
   };
 };

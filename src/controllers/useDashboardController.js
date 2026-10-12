@@ -51,8 +51,8 @@ export const useDashboardController = () => {
       const featuredProperties = propList.filter(p => p.is_featured === true).length;
 
       const totalUsers = userList.length;
-      const totalSellers = userList.filter(u => u.user_type === 'seller').length;
-      const totalBuyers = userList.filter(u => u.user_type === 'buyer').length;
+      const totalSellers = userList.filter(u => u.is_seller === true).length;
+      const totalBuyers = userList.filter(u => u.is_seller !== true).length;
       const todayNewUsers = userList.filter(u => new Date(u.created_at) >= todayStart).length;
 
       const todayNewProperties = propList.filter(p => new Date(p.created_at) >= todayStart).length;
